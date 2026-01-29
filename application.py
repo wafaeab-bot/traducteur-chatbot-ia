@@ -79,6 +79,13 @@ NLLB_TO_GTTS = {
     "spa_Latn": "es"
 }
 
+DETECT_TO_NLLB = {
+    "fr": ("Français", "fra_Latn"),
+    "en": ("Anglais", "eng_Latn"),
+    "ar": ("Arabe", "ary_Arab"),
+    "es": ("Espagnol", "spa_Latn")
+}
+
 # ===============================
 # SIDEBAR
 # ===============================
@@ -98,7 +105,7 @@ st.title("🌐 Traducteur & Chatbot IA Tout-en-Un")
 tab1, tab2 = st.tabs(["💬 Chatbot IA", "🌍 Traducteur IA"])
 
 # ======================================================
-# ONGLET 1 : CHATBOT IA (CORRIGÉ)
+# ONGLET 1 : CHATBOT IA
 # ======================================================
 with tab1:
     st.subheader("💬 Chat avec l’IA")
@@ -121,7 +128,7 @@ with tab1:
         with st.chat_message("user"):
             st.markdown(user_input)
 
-        # PROMPT CORRECT POUR FLAN-T5
+        # PROMPT POUR FLAN-T5
         prompt = f"""
 Question: {user_input}
 Answer in a clear, helpful and concise way.
@@ -198,26 +205,48 @@ with tab2:
             if f:
                 st.session_state.current_text = f.read().decode("utf-8")
 
+    # ---------- DÉTECTION DE LANGUE ----------
+    detected_lang_name = "Inconnue"
+    detected_nllb = "fra_Latn"
+
+    if st.session_state.current_text.strip() != "":
+        try:
+            det_code = detect(st.session_state.current_text)
+            if det_code in DETECT_TO_NLLB:
+                detected_lang_name, detected_nllb = DETECT_TO_NLLB[det_code]
+        except:
+            pass
+
+    st.info(f"🧠 Langue détectée : **{detected_lang_name}**")
+
+    # ---------- ÉCOUTER LE TEXTE SAISI ----------
+    if st.button("🔊 Écouter le texte saisi"):
+        if st.session_state.current_text.strip() != "":
+            try:
+                tts_input = gTTS(
+                    st.session_state.current_text,
+                    lang=NLLB_TO_GTTS.get(detected_nllb, "fr")
+                )
+                tts_input.save("input.mp3")
+                st.audio("input.mp3")
+            except:
+                st.error("Impossible de lire le texte")
+        else:
+            st.warning("Aucun texte à écouter")
+
     # ---------- TRADUCTION ----------
     with col2:
         st.subheader("📤 Traduction")
         target_lang = st.selectbox("Langue cible", list(LANG_MAP.keys()))
 
         if st.button("✨ Traduire", use_container_width=True):
-            if st.session_state.current_text:
+            if st.session_state.current_text.strip() != "":
                 with st.spinner("Traduction..."):
-                    try:
-                        det = detect(st.session_state.current_text)
-                    except:
-                        det = "fr"
-
-                    src_lang = "fra_Latn" if det == "fr" else "eng_Latn"
-
                     pipe = pipeline(
                         "translation",
                         model=model,
                         tokenizer=tokenizer,
-                        src_lang=src_lang,
+                        src_lang=detected_nllb,
                         tgt_lang=LANG_MAP[target_lang]
                     )
 
@@ -235,12 +264,13 @@ with tab2:
             else:
                 st.warning("Aucun texte")
 
+        # ---------- AFFICHAGE + ÉCOUTE + TÉLÉCHARGEMENT ----------
         if "last_result" in st.session_state:
             st.success(st.session_state.last_result)
 
             c1, c2 = st.columns(2)
             with c1:
-                if st.button("🔊 Écouter"):
+                if st.button("🔊 Écouter traduction"):
                     tts = gTTS(
                         st.session_state.last_result,
                         lang=NLLB_TO_GTTS[LANG_MAP[target_lang]]
