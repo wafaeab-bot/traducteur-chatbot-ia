@@ -1,8 +1,9 @@
 import streamlit as st
-from transformers import AutoTokenizer, AutoModelForSeq2SeqLM, pipeline
+from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
 from langdetect import detect, DetectorFactory
 from gtts import gTTS
 import pytesseract
+import torch
 from PIL import Image
 from datetime import datetime
 import speech_recognition as sr
@@ -40,11 +41,8 @@ st.markdown("""
 def load_chatbot():
     tokenizer = AutoTokenizer.from_pretrained("google/flan-t5-small")
     model = AutoModelForSeq2SeqLM.from_pretrained("google/flan-t5-small")
-    return pipeline(
-        task="text2text-generation",
-        model=model,
-        tokenizer=tokenizer
-    )
+    return tokenizer, model
+
 
 @st.cache_resource
 def load_translator():
@@ -53,7 +51,7 @@ def load_translator():
     model = AutoModelForSeq2SeqLM.from_pretrained(model_name)
     return tokenizer, model
 
-chatbot = load_chatbot()
+chatbot_tokenizer, chatbot_model = load_chatbot()
 tokenizer, model = load_translator()
 
 # ===============================
@@ -143,13 +141,18 @@ Answer in a clear, helpful and concise way.
         # Réponse IA
         with st.chat_message("assistant"):
             with st.spinner("🤖 L'IA réfléchit..."):
-                response = chatbot(
-                    prompt,
-                    max_length=200,
-                    do_sample=True,
-                    temperature=0.6,
-                    top_p=0.9
-                )[0]["generated_text"]
+               inputs = chatbot_tokenizer(prompt, return_tensors="pt", truncation=True)
+               outputs = chatbot_model.generate(
+              **inputs,
+             max_new_tokens=200,
+            do_sample=True,
+           temperature=0.6,
+           top_p=0.9
+)
+response = chatbot_tokenizer.decode(
+    outputs[0],
+    skip_special_tokens=True
+)
 
                 st.markdown(response)
 
@@ -290,5 +293,6 @@ with tab2:
                     st.session_state.last_result,
                     "traduction.txt"
                 )
+
 
 
