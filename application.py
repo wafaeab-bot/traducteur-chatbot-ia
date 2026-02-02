@@ -129,14 +129,14 @@ with tab1:
             "content": user_input
         })
 
-        with st.chat_message("user"):
-            st.markdown(user_input)
+    with st.chat_message("user"):
+         st.markdown(user_input)
 
         # PROMPT POUR FLAN-T5
         prompt = f"""
-Question: {user_input}
-Answer in a clear, helpful and concise way.
-"""
+        Question: {user_input}
+        Answer in a clear, helpful and concise way.
+        """
 
         # Réponse IA
         with st.chat_message("assistant"):
@@ -146,8 +146,8 @@ Answer in a clear, helpful and concise way.
               **inputs,
              max_new_tokens=200,
             do_sample=True,
-           temperature=0.6,
-           top_p=0.9
+            temperature=0.6,
+            top_p=0.9
 )
 response = chatbot_tokenizer.decode(
     outputs[0],
@@ -293,6 +293,7 @@ with tab2:
                     st.session_state.last_result,
                     "traduction.txt"
                 )
+
 
 
 
