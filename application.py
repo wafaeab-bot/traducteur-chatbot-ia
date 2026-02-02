@@ -1,5 +1,5 @@
 import streamlit as st
-from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
+from transformers import AutoTokenizer, AutoModelForSeq2SeqLM, pipeline
 from langdetect import detect, DetectorFactory
 from gtts import gTTS
 import pytesseract
@@ -18,7 +18,7 @@ st.set_page_config(
 )
 
 # ===============================
-# STYLE SIMPLE & PRO
+# STYLE
 # ===============================
 st.markdown("""
 <style>
@@ -43,7 +43,6 @@ def load_chatbot():
     model = AutoModelForSeq2SeqLM.from_pretrained("google/flan-t5-small")
     return tokenizer, model
 
-
 @st.cache_resource
 def load_translator():
     model_name = "facebook/nllb-200-distilled-600M"
@@ -52,7 +51,7 @@ def load_translator():
     return tokenizer, model
 
 chatbot_tokenizer, chatbot_model = load_chatbot()
-tokenizer, model = load_translator()
+translator_tokenizer, translator_model = load_translator()
 
 # ===============================
 # ÉTATS
@@ -129,31 +128,25 @@ with tab1:
             "content": user_input
         })
 
-    with st.chat_message("user"):
-         st.markdown(user_input)
+        # Affichage immédiat
+        with st.chat_message("user"):
+            st.markdown(user_input)
 
         # PROMPT POUR FLAN-T5
-        prompt = f"""
-        Question: {user_input}
-        Answer in a clear, helpful and concise way.
-        """
+        prompt = f"Question: {user_input}\nAnswer in a clear, helpful and concise way."
 
         # Réponse IA
         with st.chat_message("assistant"):
             with st.spinner("🤖 L'IA réfléchit..."):
-               inputs = chatbot_tokenizer(prompt, return_tensors="pt", truncation=True)
-               outputs = chatbot_model.generate(
-              **inputs,
-             max_new_tokens=200,
-            do_sample=True,
-            temperature=0.6,
-            top_p=0.9
-)
-response = chatbot_tokenizer.decode(
-    outputs[0],
-    skip_special_tokens=True
-)
-
+                inputs = chatbot_tokenizer(prompt, return_tensors="pt", truncation=True)
+                outputs = chatbot_model.generate(
+                    **inputs,
+                    max_new_tokens=200,
+                    do_sample=True,
+                    temperature=0.6,
+                    top_p=0.9
+                )
+                response = chatbot_tokenizer.decode(outputs[0], skip_special_tokens=True)
                 st.markdown(response)
 
         # Sauvegarde réponse
@@ -164,7 +157,7 @@ response = chatbot_tokenizer.decode(
 
     if st.button("🗑️ Effacer le chat"):
         st.session_state.chat_history = []
-        st.rerun()
+        st.experimental_rerun()
 
 # ======================================================
 # ONGLET 2 : TRADUCTEUR IA MULTIMODAL
@@ -196,18 +189,7 @@ with tab2:
                 st.session_state.current_text = pytesseract.image_to_string(img)
 
         elif mode == "Vocal (Micro)":
-            audio = st.audio_input("Enregistrer")
-            if audio:
-                recog = sr.Recognizer()
-                with sr.AudioFile(audio) as src:
-                    data = recog.record(src)
-                    try:
-                        st.session_state.current_text = recog.recognize_google(
-                            data, language="fr-FR"
-                        )
-                        st.success("Texte reconnu")
-                    except:
-                        st.error("Erreur reconnaissance vocale")
+            st.warning("⚠️ Micro non supporté sur Streamlit Cloud. Utilisez un fichier audio ou le clavier.")
 
         elif mode == "Fichier":
             f = st.file_uploader("Fichier .txt", type=["txt"])
@@ -217,7 +199,6 @@ with tab2:
     # ---------- DÉTECTION DE LANGUE ----------
     detected_lang_name = "Inconnue"
     detected_nllb = "fra_Latn"
-
     if st.session_state.current_text.strip() != "":
         try:
             det_code = detect(st.session_state.current_text)
@@ -225,7 +206,6 @@ with tab2:
                 detected_lang_name, detected_nllb = DETECT_TO_NLLB[det_code]
         except:
             pass
-
     st.info(f"🧠 Langue détectée : **{detected_lang_name}**")
 
     # ---------- ÉCOUTER LE TEXTE SAISI ----------
@@ -253,17 +233,12 @@ with tab2:
                 with st.spinner("Traduction..."):
                     pipe = pipeline(
                         "translation",
-                        model=model,
-                        tokenizer=tokenizer,
+                        model=translator_model,
+                        tokenizer=translator_tokenizer,
                         src_lang=detected_nllb,
                         tgt_lang=LANG_MAP[target_lang]
                     )
-
-                    result = pipe(
-                        st.session_state.current_text,
-                        max_length=500
-                    )[0]["translation_text"]
-
+                    result = pipe(st.session_state.current_text, max_length=500)[0]["translation_text"]
                     st.session_state.last_result = result
                     st.session_state.history.append({
                         "time": datetime.now().strftime("%H:%M"),
@@ -276,7 +251,6 @@ with tab2:
         # ---------- AFFICHAGE + ÉCOUTE + TÉLÉCHARGEMENT ----------
         if "last_result" in st.session_state:
             st.success(st.session_state.last_result)
-
             c1, c2 = st.columns(2)
             with c1:
                 if st.button("🔊 Écouter traduction"):
@@ -286,14 +260,9 @@ with tab2:
                     )
                     tts.save("tr.mp3")
                     st.audio("tr.mp3")
-
             with c2:
                 st.download_button(
                     "📥 Télécharger",
                     st.session_state.last_result,
                     "traduction.txt"
                 )
-
-
-
-
