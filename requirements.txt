@@ -1,0 +1,9 @@
+streamlit
+transformers
+torch
+sentencepiece
+langdetect
+gtts
+pytesseract
+Pillow
+SpeechRecognition
