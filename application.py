@@ -1,5 +1,5 @@
 import streamlit as st
-from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
+from transformers import AutoTokenizer, AutoModelForSeq2SeqLM, pipeline
 from langdetect import detect, DetectorFactory
 from gtts import gTTS
 import pytesseract
@@ -290,4 +290,5 @@ with tab2:
                     st.session_state.last_result,
                     "traduction.txt"
                 )
+
 
