@@ -1,5 +1,5 @@
 import streamlit as st
-from transformers import AutoTokenizer, AutoModelForSeq2SeqLM, pipeline
+from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
 from langdetect import detect, DetectorFactory
 from gtts import gTTS
 import pytesseract
@@ -38,7 +38,13 @@ st.markdown("""
 # ===============================
 @st.cache_resource
 def load_chatbot():
-    return pipeline("text2text-generation", model="google/flan-t5-small")
+    tokenizer = AutoTokenizer.from_pretrained("google/flan-t5-small")
+    model = AutoModelForSeq2SeqLM.from_pretrained("google/flan-t5-small")
+    return pipeline(
+        task="text2text-generation",
+        model=model,
+        tokenizer=tokenizer
+    )
 
 @st.cache_resource
 def load_translator():
@@ -284,3 +290,4 @@ with tab2:
                     st.session_state.last_result,
                     "traduction.txt"
                 )
+
